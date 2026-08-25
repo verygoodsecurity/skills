@@ -22,9 +22,6 @@ CLI skills are installed from this catalog.
 - [`vgs-https-proxy-onboarding`](./skills/vgs-https-proxy-onboarding/SKILL.md) —
   provision and verify SANDBOX HTTPS Proxy routes and filters.
   `npx skills add verygoodsecurity/skills --skill vgs-https-proxy-onboarding`
-- [`vgs-show-onboarding`](./skills/vgs-show-onboarding/SKILL.md) — choose and
-  integrate the relevant VGS Show platform using a verified route contract.
-  `npx skills add verygoodsecurity/skills --skill vgs-show-onboarding`
 
 ## VGS Collect
 
@@ -46,6 +43,9 @@ CLI skills are installed from this catalog.
 
 ## VGS Show
 
+- [`vgs-show-js-guide`](./skills/vgs-show-js-guide/SKILL.md) — integrate,
+  troubleshoot, and review VGS Show.js browser applications.
+  `npx skills add verygoodsecurity/skills --skill vgs-show-js-guide`
 - [`vgs-show-android-guide`](./skills/vgs-show-android-guide/SKILL.md) — integrate,
   migrate, troubleshoot, and review VGS Show Android apps.
   `npx skills add https://github.com/verygoodsecurity/vgs-show-android --skill vgs-show-android-guide`
