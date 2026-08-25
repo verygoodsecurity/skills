@@ -24,19 +24,25 @@ safe reads that the authenticated tenant is that identifier and is SANDBOX;
 block on any mismatch and never infer an identifier from a name or prefix.
 
 Read [references/execution-contract.md](references/execution-contract.md)
-before any authenticated read or mutation. Load only the component skills
-selected by the plan:
+before any authenticated read or mutation. Discover the current public catalog
+before resolving dependencies:
 
-- `vgs-sftp-proxy-onboarding`
-- `vgs-vault-api-onboarding`
-- `vgs-https-proxy-onboarding`
-- `vgs-show-onboarding`
+```bash
+npx skills add verygoodsecurity/skills --list
+```
+
+Support every skill returned by that catalog. Load only the skills required by
+the approved plan, using each skill's name and description to match the selected
+product, platform, and operation. Never load `vgs-agentic-onboarding` as its own
+dependency. Do not substitute a skill for a different product or platform, and
+do not treat catalog availability as authorization to execute an unselected
+step.
 
 If a selected component skill is not installed, install only that skill at
 global scope so the customer repository remains unchanged:
 
 ```bash
-DISABLE_TELEMETRY=1 npx skills add verygoodsecurity/skills --global --skill <COMPONENT_SKILL> --yes
+npx skills add verygoodsecurity/skills --global --skill <COMPONENT_SKILL> --yes
 ```
 
 Confirm that the selected global skill is available before continuing. Never use
