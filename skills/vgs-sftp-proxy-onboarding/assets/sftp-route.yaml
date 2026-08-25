@@ -1,0 +1,32 @@
+---
+data:
+  - type: rule_chain
+    attributes:
+      protocol: sftp
+      source_endpoint: <SFTP_PROXY_SOURCE_ENDPOINT>
+      destination_override_endpoint: <UPSTREAM_SANDBOX_SFTP_ENDPOINT>
+      host_endpoint: <SFTP_PROXY_HOST_ENDPOINT>
+      port: 22
+      tags:
+        name: <ROUTE_NAME>
+        source: agentic-onboarding
+      entries:
+        - phase: REQUEST
+          operation: REDACT
+          token_manager: PERSISTENT
+          public_token_generator: UUID
+          transformer: JSON_PATH
+          transformer_config:
+            - <SENSITIVE_FIELD_SELECTOR>
+          targets: []
+          classifiers: {}
+          config:
+            condition: AND
+            rules:
+              - expression:
+                  field: filePath
+                  type: string
+                  operator: matches
+                  values:
+                    - <FILE_PATH_REGEX>
+version: 1
