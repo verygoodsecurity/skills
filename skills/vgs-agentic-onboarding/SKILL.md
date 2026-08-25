@@ -32,10 +32,18 @@ selected by the plan:
 - `vgs-https-proxy-onboarding`
 - `vgs-show-onboarding`
 
-If a selected component skill is not installed, the agent installs it itself
-from `verygoodsecurity/skills` through skills.sh. Never ask the user to run the
-installation command. Use the guarded fallback only when installation fails or
-the published skill is unavailable.
+If a selected component skill is not installed, install only that skill at
+global scope so the customer repository remains unchanged:
+
+```bash
+DISABLE_TELEMETRY=1 npx skills add verygoodsecurity/skills --global --skill <COMPONENT_SKILL> --yes
+```
+
+Confirm that the selected global skill is available before continuing. Never use
+a project-local installation, ask the user to run the command, or leave
+`.agents/` or `skills-lock.json` in the customer repository. Use the guarded
+fallback when global installation fails, would modify the project, or the
+published skill is unavailable.
 
 ## Execution boundary
 

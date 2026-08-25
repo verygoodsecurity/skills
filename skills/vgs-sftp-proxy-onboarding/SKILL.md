@@ -22,8 +22,14 @@ in the plan, route YAML, Git, or conversation.
 
 - Start from [assets/sftp-route.yaml](assets/sftp-route.yaml), which is a
   sanitized creation template derived from an exported route.
-- Replace every placeholder and revalidate the shape against current official
-  docs and `vgs apply routes --help` before proposing it.
+- Replace every placeholder, including the confirmed port, phase, operation,
+  storage mode, alias format, file transformer, and selector. The asset has no
+  operational defaults and must never be applied with unresolved placeholders.
+- Select the transformer and its configuration from the confirmed file format
+  and a current SANDBOX export or official documentation. In particular, do
+  not use `JSON_PATH` for CSV or another non-JSON file.
+- Revalidate the completed shape against current official docs and
+  `vgs apply routes --help` before proposing it.
 - A creation payload must not contain route IDs, entry IDs, `created_at`, or
   `updated_at`. Those fields turn an exported document into an update or carry
   server-generated state.

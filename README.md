@@ -4,9 +4,9 @@ Public AI skills for integrating and operating Very Good Security products.
 The skills are distributed through [skills.sh](https://skills.sh/) and are
 organized under [`skills/`](./skills).
 
-Install SDK and CLI skills from their product repositories so their guidance
-stays aligned with the corresponding public code. Cross-product onboarding
-skills are installed from this catalog.
+Install SDK skills from their product repositories so their guidance stays
+aligned with the corresponding public code. Cross-product onboarding and VGS
+CLI skills are installed from this catalog.
 
 ## Agentic onboarding
 
@@ -60,4 +60,4 @@ skills are installed from this catalog.
 
 - [`vgs-cli-guide`](./skills/vgs-cli-guide/SKILL.md) — install and operate the
   VGS CLI for onboarding, configuration, automation, and troubleshooting.
-  `npx skills add verygoodsecurity/vgs-cli --skill vgs-cli-guide`
+  `npx skills add verygoodsecurity/skills --skill vgs-cli-guide`

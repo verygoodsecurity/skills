@@ -13,7 +13,10 @@ pages for the selected direction.
 
 Confirm inbound or outbound direction, SANDBOX upstream hostname, path and
 content-type conditions, request or response phase, operation, selectors,
-alias format, storage, and application proxy ownership.
+alias format, storage, and application proxy ownership. For outbound routes,
+also confirm the SANDBOX proxy endpoint and port, the application owner's TLS
+trust configuration, an approved protected reference for proxy credentials,
+and a credential-injection mechanism that does not expose secrets to the agent.
 
 ## CLI workflow
 
@@ -31,7 +34,14 @@ alias format, storage, and application proxy ownership.
    content type, and synthetic request and response JSON shapes. Verify that
    route selectors address those exact JSON fields; never invent or copy a
    contract from a different route.
+7. For outbound application steps, also record the proxy endpoint and port,
+   authentication method, TLS trust artifact owner or non-secret path, protected
+   credential reference, injection owner, and readiness status. Never record or
+   read the credential value.
 
 Validate with synthetic SANDBOX traffic. Do not inspect access logs or captured
-payloads in agent context. A pass-through route without the required operation
-is incomplete.
+payloads in agent context. For outbound validation, use only the protected
+injection procedure from the core execution contract. If credentials or TLS
+trust cannot be configured without exposing secrets, record validation as
+blocked instead of weakening TLS or asking the user to paste credentials. A
+pass-through route without the required operation is incomplete.
