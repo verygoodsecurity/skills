@@ -1,0 +1,47 @@
+---
+name: validate skills
+
+on:
+  pull_request:
+    branches:
+      - '**'
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.14'
+
+      - name: Install skills-ref
+        run: python -m pip install --upgrade pip skills-ref
+
+      - name: Validate public skills
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v skills-ref >/dev/null 2>&1 && command -v agentskills >/dev/null 2>&1; then
+            printf '#!/usr/bin/env bash\nexec agentskills "$@"\n' > "$RUNNER_TEMP/skills-ref"
+            chmod +x "$RUNNER_TEMP/skills-ref"
+            export PATH="$RUNNER_TEMP:$PATH"
+          fi
+
+          for skill_file in skills/*/SKILL.md; do
+            skill="${skill_file%/SKILL.md}"
+            echo "Validating $skill"
+            skills-ref validate "$skill"
+          done
