@@ -1,0 +1,19 @@
+---
+name: Mirror to Public Repository
+
+on:
+  push:
+    branches:
+      - main
+      - 'public/*'  # make branch visible in public repo
+    tags:
+      - '*'
+
+jobs:
+  mirror:
+    name: Mirror Repository
+    # public-mirror-workflow-v1.0.0
+    uses: verygood-ops/cicd-shared/.github/workflows/public-mirror.yaml@f1a734b2642649c8e9188cf7bc2505db5bb01e27
+    secrets:
+      VGS_GITHUB_CI_BOT_APP_ID: ${{ secrets.VGS_GITHUB_CI_BOT_APP_ID }}
+      VGS_GITHUB_CI_BOT_APP_PEM_FILE: ${{ secrets.VGS_GITHUB_CI_BOT_APP_PEM_FILE }}

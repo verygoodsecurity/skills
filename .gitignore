@@ -4,6 +4,9 @@
 ### OSX ###
 .DS_Store
 
+### Local agent instructions ###
+/AGENTS.md
+
 ### Emacs ###
 *~
 \#*\#
