@@ -140,8 +140,8 @@ Apply these conventions precisely:
 - Use `--tenant` / `-T` with the exact tenant identifier from Dashboard or the
   user; tenant identifiers do not have a single standard prefix.
 - Use `--organization` / `-O` for an organization ID such as `AC...`.
-- Use repeatable `--tenant/-T` on `vgs generate service-account` to grant access to
-  one or more tenants.
+- Use exactly one `--tenant/-T` with each built-in
+  `vgs generate service-account` template.
 - Use `-f` for an input file where help exposes it and `-o` for an output file.
 - Use `vgs --help`, `vgs <GROUP> --help`, and
   `vgs <GROUP> <COMMAND> --help` before relying on an unfamiliar option.

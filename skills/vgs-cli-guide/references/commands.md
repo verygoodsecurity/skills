@@ -141,26 +141,27 @@ Read `workflows.md` for the backup, apply, and read-back sequence.
 Generate a template with one of the supported template names:
 
 ```bash
-vgs generate service-account --template vgs-cli > service-account.yaml
-vgs generate service-account --template calm \
-  --tenant <TENANT_ID> > service-account.yaml
-vgs generate service-account --template checkout \
+vgs generate service-account --template public-credential-collect \
   --tenant <TENANT_ID> \
   --var name=<SERVICE_ACCOUNT_NAME> > service-account.yaml
-vgs generate service-account --template sub-account-checkout \
+vgs generate service-account --template read-credentials-no-pci \
   --tenant <TENANT_ID> \
-  --var sub_account_id=<SUB_ACCOUNT_ID> > service-account.yaml
-vgs generate service-account --template payments-admin \
-  --tenant <TENANT_ID> > service-account.yaml
+  --var name=<SERVICE_ACCOUNT_NAME> > service-account.yaml
+vgs generate service-account --template read-credentials-with-pci \
+  --tenant <TENANT_ID> \
+  --var name=<SERVICE_ACCOUNT_NAME> > service-account.yaml
+vgs generate service-account --template credentials-admin \
+  --tenant <TENANT_ID> \
+  --var name=<SERVICE_ACCOUNT_NAME> > service-account.yaml
 ```
 
 Generate options:
 
 | Option | Purpose |
 | --- | --- |
-| `--template, -t` | Required template: `vgs-cli`, `calm`, `checkout`, `sub-account-checkout`, or `payments-admin`. |
-| `--var NAME=VALUE` | Supply a required template variable; repeat as needed. |
-| `--tenant, -T <TENANT_ID>` | Grant access to a tenant; repeat for templates that allow multiple tenants. |
+| `--template, -t` | Required template: `public-credential-collect`, `read-credentials-no-pci`, `read-credentials-with-pci`, or `credentials-admin`. |
+| `--var name=VALUE` | Required service-account name containing 1–20 characters. |
+| `--tenant, -T <TENANT_ID>` | Required tenant; each built-in template accepts exactly one. |
 
 Inspect the generated YAML before applying it, then manage the account:
 

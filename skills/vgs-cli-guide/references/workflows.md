@@ -310,14 +310,23 @@ vgs delete form -T <TENANT_ID> <FORM_ID>
 ## CI/CD handoff
 
 Have the customer create a service account either in Dashboard under
-Organization settings or through the CLI. For the CLI flow, provide the
-generated `vgs-cli` template and remove unnecessary scopes:
+Organization settings or through the CLI. The built-in CLI templates are for
+payment-credential workflows. For a read-only integration that must not return
+PCI-sensitive PAN or CVC fields, use the no-PCI template:
 
 ```bash
 vgs generate service-account \
-  --template vgs-cli \
-  --tenant <TENANT_ID> > service-account.yaml
+  --template read-credentials-no-pci \
+  --tenant <TENANT_ID> \
+  --var name=<SERVICE_ACCOUNT_NAME> > service-account.yaml
 ```
+
+Use `public-credential-collect` for card, network-token, and 3DS writes. Use
+`read-credentials-with-pci` only for a PCI-compliant client that must retrieve
+PAN or CVC data. Use `credentials-admin` only when the integration needs the
+complete read/write scope set. For unrelated automation, create a separately
+reviewed least-privilege service account instead of broadening one of these
+templates.
 
 Review the generated YAML. Because apply returns a one-time client secret,
 provide protected shell redirection to a new absolute destination outside a

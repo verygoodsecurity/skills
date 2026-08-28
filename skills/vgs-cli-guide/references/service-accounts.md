@@ -31,38 +31,42 @@ controlled local use.
 
 ## Creating via CLI
 
-1. Generate the general-purpose template and grant only the required tenants:
+1. Choose the least-privilege payment-credential template and grant it access
+   to exactly one tenant. This example reads cards without returning
+   PCI-sensitive PAN and CVC fields:
 
    ```bash
    vgs generate service-account \
-     --template vgs-cli \
-     --tenant <TENANT_ID> > service_account.yaml
+     --template read-credentials-no-pci \
+     --tenant <TENANT_ID> \
+     --var name=<SERVICE_ACCOUNT_NAME> > service_account.yaml
    ```
 
-   `--tenant/-T` is repeatable for templates that support multiple tenants.
+   `--var name=...` is required and must contain 1–20 characters. Each
+   built-in template requires exactly one `--tenant/-T`.
 
    ```yaml
    apiVersion: 1.0.0
    kind: ServiceAccount
    data:
-     # Max access-token lifetime in seconds (default 5 minutes)
-     accessTokenLifespan: 300
-     # Tenants the service account may access.
-     # If none are listed, it has access to NO tenants.
+     name: <SERVICE_ACCOUNT_NAME>
      vaults:
        - <TENANT_ID>
-     # Non-unique name, max 20 characters
-     name: vgs-cli
      scopes:
-       - name: access-logs:read
-       - name: organizations:read
-       - name: routes:write
-       - name: vaults:write
+       - name: cards:read
+       - name: card-attributes:read
+       - name: network-tokens:read
+       - name: account-validations:write
+       - name: account-validations:read
+       - name: account-reference-numbers:read
    ```
 
-   Other supported templates are `calm`, `checkout`, `sub-account-checkout`,
-   and `payments-admin`. Some require `--var NAME=VALUE`; inspect
-   `vgs generate service-account --help` and the generated YAML before use.
+   Use `public-credential-collect` to write cards, network tokens, and 3DS data.
+   Use `read-credentials-with-pci` only for a PCI-compliant client that must
+   retrieve PAN or CVC data. Use `credentials-admin` only when an integration
+   needs the complete read/write scope set. These templates are specific to
+   payment-credential workflows; create a separately reviewed least-privilege
+   configuration for unrelated automation.
 
 2. Edit `name`, `scopes`, and `vaults` to the minimum the automation needs.
    Do not add a scope merely because it appears in the table below.
@@ -121,8 +125,15 @@ product-specific scopes; do not invent or broaden scopes.
 | Scope | Description |
 | --- | --- |
 | `3ds:admin` | Invoke all 3DS endpoints (PayOpt) |
+| `3ds:read` | Read 3DS authentication status |
+| `3ds:write` | Initialize and authenticate 3DS transactions |
 | `access-logs:read` | Read tenant access logs |
+| `account-reference-numbers:read` | Read account reference numbers |
+| `account-validations:read` | Read account validation results |
+| `account-validations:write` | Create account validation requests |
+| `card-attributes:read` | Read card attributes |
 | `cards:read` | Read cards |
+| `cards:read-pci` | Read PCI-sensitive PAN and CVC fields for PCI-compliant clients |
 | `cards:write` | Write cards |
 | `credentials:write` | Full management of vault credentials |
 | `merchants:write` | Write merchants |
@@ -142,8 +153,8 @@ product-specific scopes; do not invent or broaden scopes.
 | `vaults:read` | Read tenant details (name, identifier) |
 | `vaults:write` | Create and update tenants |
 
-Specialized generated templates may contain additional product scopes, such as
-financial instruments, gateways, or orders, that are not in this common table.
+Generated templates may contain product scopes that are not available until
+the corresponding VGS product is enabled for the organization.
 
 Scopes cannot be modified after creation; recreate the account to change them.
 Limit: 50 service accounts per organization; contact
