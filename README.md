@@ -16,9 +16,6 @@ CLI skills are installed from this catalog.
 - [`vgs-sftp-proxy-onboarding`](./skills/vgs-sftp-proxy-onboarding/SKILL.md) —
   provision and verify SANDBOX SFTP Proxy routes.
   `npx skills add verygoodsecurity/skills --skill vgs-sftp-proxy-onboarding`
-- [`vgs-vault-api-onboarding`](./skills/vgs-vault-api-onboarding/SKILL.md) —
-  configure least-privilege SANDBOX Vault API access.
-  `npx skills add verygoodsecurity/skills --skill vgs-vault-api-onboarding`
 - [`vgs-https-proxy-onboarding`](./skills/vgs-https-proxy-onboarding/SKILL.md) —
   provision and verify SANDBOX HTTPS Proxy routes and filters.
   `npx skills add verygoodsecurity/skills --skill vgs-https-proxy-onboarding`
