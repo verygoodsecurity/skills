@@ -6,8 +6,9 @@ description: >-
   onboard an organization or tenant, configure routes, Collect Forms, or
   organization notifications, inspect logs, manage access credentials, service
   accounts, or certificates, automate VGS through CI/CD or Docker, or
-  troubleshoot the `vgs` command, login, keychain, or keyring. This skill never
-  executes `vgs` commands for the user.
+  troubleshoot the `vgs` command, login, keychain, or keyring. Provide reviewed
+  commands by default, or execute them when the user explicitly delegates CLI
+  operation with the required environment and target authorization.
 license: MIT
 metadata:
   author: Very Good Security
@@ -23,15 +24,17 @@ current installed CLI help as the exact command contract; installed plugins
 may add commands that are not part of the built-in surface documented by this
 skill.
 
-This is a command-guidance-only skill. Every `vgs` command in this skill is for
-the user to copy and run in their own terminal. Never execute `vgs` on the
-user's behalf, including login, help/version checks, authenticated reads,
-mutations, or secret-producing commands, even when the user explicitly asks or
-delegates execution.
+Provide copy-paste commands by default. When the user explicitly delegates CLI
+execution, the agent may run `vgs` within the authorized scope. Before a live
+authenticated read or mutation, confirm the applicable organization, exact
+tenant, SANDBOX or LIVE environment, and requested operation. Delegation to use
+the CLI does not authorize broader discovery, additional mutations, or a LIVE
+operation that the user did not specify.
 
-When the installed version or help differs from this skill, ask the user to run
-`vgs --version` and the relevant nested `--help` command and share only the
-non-sensitive output. Commands retained in help for backward compatibility are
+When the installed version or help differs from this skill, run `vgs --version`
+and the relevant nested `--help` command when execution was delegated;
+otherwise ask the user to run them and share only non-sensitive output.
+Commands retained in help for backward compatibility are
 not the recommended workflow; follow this skill's deprecation guidance even
 when an old command remains visible. For a skill installed through skills.sh,
 have the user update it with:
@@ -127,6 +130,10 @@ vgs get tenants
 vgs get routes --tenant <TENANT_ID>
 vgs get notifications --organization <ORGANIZATION_ID>
 
+# Generate a starter route resource document
+vgs generate route --protocol http
+vgs generate route --protocol sftp
+
 # Create or update a tenant-scoped resource from YAML
 vgs apply routes --tenant <TENANT_ID> -f routes.yaml
 
@@ -140,8 +147,8 @@ Apply these conventions precisely:
 - Use `--tenant` / `-T` with the exact tenant identifier from Dashboard or the
   user; tenant identifiers do not have a single standard prefix.
 - Use `--organization` / `-O` for an organization ID such as `AC...`.
-- Use exactly one `--tenant/-T` with each built-in
-  `vgs generate service-account` template.
+- The `vgs-cli` service-account template accepts zero or more `--tenant/-T`
+  options; payment-credential templates require exactly one.
 - Use `-f` for an input file where help exposes it and `-o` for an output file.
 - Use `vgs --help`, `vgs <GROUP> --help`, and
   `vgs <GROUP> <COMMAND> --help` before relying on an unfamiliar option.
@@ -174,39 +181,32 @@ selected configuration file; an explicit `--config` takes precedence over the
 
 ## Safety gates
 
-Always use a copy-paste flow. Never invoke `vgs` through an agent-visible
-terminal or tool. This rule includes `vgs login`, `vgs logout`, `vgs --help`,
-`vgs --version`, authenticated reads, `apply`, `delete`, credential generation,
-service-account operations, certificate operations, and commands that may
-return one-time secrets. Explicit requests such as “run this,” “execute these
-commands,” “create it for me,” or “use the CLI and do it” do not override this
-boundary. Briefly state that this skill provides reviewed commands for the user
-to execute in their own terminal, then continue with the command list instead
-of refusing the underlying workflow.
+Support both guidance and delegated execution:
 
-Make the handoff unambiguous:
-
-1. State: “Run these commands in your own terminal; I will not execute them.”
-2. Provide an ordered, copy-paste-ready command list.
-3. Label authenticated reads, mutations, and secret-producing commands.
-4. Ask the user to return only non-sensitive status, identifiers, or sanitized
-   errors needed for the next step. Never request credential-bearing output.
-5. Provide direct commands only. Do not create or generate a wrapper, helper
-   script, or executable artifact for the user.
+1. Without explicit delegation, provide an ordered, copy-paste-ready command
+   list for the user to run.
+2. With explicit delegation, execute only the requested CLI workflow and stay
+   within the confirmed organization, tenant, environment, and operation.
+3. Label authenticated reads, mutations, and secret-producing commands before
+   asking for authorization or executing them.
+4. Return only non-sensitive status, identifiers, and sanitized errors. Never
+   place credential-bearing output in chat or agent-visible tool output.
 
 - Default onboarding and examples to SANDBOX. Never infer permission to mutate
   a LIVE tenant from a general setup or troubleshooting request.
 - Keep read-only inspection separate from `apply`, `delete`, access-credential
   generation, service-account creation/deletion, and certificate operations.
 - For a command that returns a one-time credential or client secret, provide
-  the protected redirection pattern below. The user chooses a new absolute
-  destination outside version control and runs the command. Never ask the user
-  to upload the file or read, preview, parse, hash, or summarize its contents.
+  the protected redirection pattern below. The user chooses or approves a new
+  absolute destination outside version control. If execution is delegated, run
+  the command only with stdout redirected directly to that destination; never
+  capture the response in agent-visible output or read, preview, parse, hash,
+  or summarize it.
 - Back up existing routes with `vgs get routes -T <TENANT_ID> > routes.yaml`
   before applying replacements, and perform read-back verification afterward.
 - Allow interactive confirmation prompts by default. Use `--confirm` / `-y`
   only when the user explicitly requests a non-interactive command and has
-  reviewed the exact mutation; the user still executes it.
+  reviewed the exact mutation.
 - Treat tenant credentials, service-account secrets, access tokens, and
   certificate private keys as secrets. Use a secret manager for automation;
   never put them in shell history, logs, chat, or version control.
@@ -224,21 +224,35 @@ restrictive umask and refuses to overwrite an existing file:
 )
 ```
 
-Explain that the user must choose a new path outside version control, run the
-command in their private terminal, and open the response only there. Have the
-user transfer secrets to an approved secret manager and remove the plaintext
-file when it is no longer needed. Never suggest printing, uploading, or pasting
-the captured contents into chat.
+The user must choose or approve a new path outside version control and open the
+response only in their private environment. When execution is delegated,
+verify that the destination is outside version control and does not exist, but
+do not inspect the response contents. Have the user transfer secrets to an
+approved secret manager and remove the plaintext file when it is no longer
+needed. Never suggest printing, uploading, or pasting the captured contents
+into chat.
 
 For a user-requested CLI tenant creation, use `vgs generate tenant` and
-`vgs apply tenant`. Protect the apply response with the redirection pattern
-above because it contains one-time credentials; the user executes every
-command.
+`vgs apply tenant`. SANDBOX and LIVE both use bounded provisioning, create the
+payment account, apply environment-specific account configuration, and keep
+private recovery state. SANDBOX additionally performs merchant setup and
+creates a CLI-managed `default` Collect Form with card brand and card type
+enabled. Dashboard tenant creation does not yet create this form, and LIVE
+creation never creates it. Protect the apply response with the redirection
+pattern above because it contains one-time credentials. If either environment
+reports partial completion, run or provide the same `vgs apply tenant --file`
+command again. The CLI automatically
+continues the existing operation. When the matching operation is already
+complete, the CLI verifies the tenant and reports that no changes were made.
+To create a separate tenant, update the file to use a unique tenant name.
+Recovery files are managed internally. When output is protected with
+`noclobber`, the repeated command needs a new secure response destination.
 
 ## Troubleshoot
 
-When debug mode is needed, provide the command for the user to run and tell
-them to inspect and redact its output before sharing it:
+When debug mode is needed, keep its potentially sensitive output out of
+agent-visible tools. Without a safe redirected destination, have the user run
+it and inspect and redact its output before sharing it:
 
 ```bash
 vgs -d get routes --tenant <TENANT_ID>

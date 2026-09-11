@@ -4,8 +4,9 @@ Source: https://docs.verygoodsecurity.com/vault/developer-tools/vgs-cli/troubles
 
 ## Debug mode
 
-Have the customer re-run a failing command with `-d` / `--debug` in their own
-terminal to get a stack trace for VGS Support:
+Debug output can contain sensitive request context. Have the customer run the
+command in their own terminal, or execute it only with output redirected to a
+customer-approved secure path that the agent does not inspect:
 
 ```bash
 vgs -d get routes --tenant <TENANT_ID>
@@ -55,6 +56,21 @@ vgs-cli if needed.
 Interactive sessions expire after 30 minutes of inactivity; an authentication
 failure mid-workflow usually just means `vgs login` again. Service-account
 auth (env vars) does not have this problem.
+
+## Incomplete tenant creation
+
+SANDBOX or LIVE tenant creation can complete one remote stage before a later
+API call fails. Run the same `apply tenant --file` command again. The CLI
+detects the matching private recovery state, verifies existing resources, and
+continues automatically. To create a separate tenant instead, update the input
+file to use a unique tenant name.
+
+The CLI manages the state file internally, rejects modified or broadly readable
+state, verifies existing remote resources, and reconciles an account created
+remotely before its identifier was saved. Do not locate, edit, move, or delete
+recovery state. Repeating a completed configuration reports that the tenant
+already exists without making changes; use a unique tenant name for another
+tenant. If verification fails, stop and contact VGS Support.
 
 ## Support
 

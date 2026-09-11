@@ -15,7 +15,8 @@ Choose a version from Docker Hub, then verify it before authentication:
 
 ```bash
 export VGS_CLI_VERSION=<PUBLISHED_VERSION>
-docker run --rm verygoodsecurity/cli:${VGS_CLI_VERSION} --version
+docker run --rm \
+  verygoodsecurity/cli:${VGS_CLI_VERSION} --version
 ```
 
 If the reported version is older than the skill or lacks an option shown in

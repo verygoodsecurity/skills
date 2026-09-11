@@ -31,9 +31,22 @@ controlled local use.
 
 ## Creating via CLI
 
-1. Choose the least-privilege payment-credential template and grant it access
-   to exactly one tenant. This example reads cards without returning
-   PCI-sensitive PAN and CVC fields:
+1. Choose the least-privilege template for the automation. For common CLI
+   organization, tenant, route, and access-log operations, generate the
+   `vgs-cli` template and grant only the required tenants:
+
+   ```bash
+   vgs generate service-account \
+     --template vgs-cli \
+     --tenant <TENANT_ID> > service_account.yaml
+   ```
+
+   `--tenant/-T` is repeatable for `vgs-cli`. Omitting it produces a warning
+   and an account with no tenant access.
+
+   For payment-credential operations, choose the relevant product template and
+   grant it access to exactly one tenant. This example reads cards without
+   returning PCI-sensitive PAN and CVC fields:
 
    ```bash
    vgs generate service-account \
@@ -71,9 +84,9 @@ controlled local use.
 2. Edit `name`, `scopes`, and `vaults` to the minimum the automation needs.
    Do not add a scope merely because it appears in the table below.
 3. Confirm the organization and SANDBOX/LIVE environment. Because apply returns
-   a one-time secret, provide a command with protected shell redirection to a
-   new absolute path outside a Git worktree. The customer runs it in their
-   private terminal:
+   a one-time secret, use protected shell redirection to a new absolute path
+   outside a Git worktree. If execution is delegated, the customer must approve
+   the destination and the agent must not inspect it:
 
    ```bash
    (
@@ -86,10 +99,11 @@ controlled local use.
    )
    ```
 
-   Never execute this command. Do not ask the customer to upload, print, or
-   paste the response, and do not read, preview, parse, or summarize it. Have
-   the customer transfer the secret to an approved secret manager and return
-   only a non-sensitive success status or sanitized error.
+   Execute only with stdout redirected directly to the approved destination.
+   Do not ask the customer to upload, print, or paste the response, and do not
+   read, preview, parse, or summarize it. Have the customer transfer the secret
+   to an approved secret manager and return only a non-sensitive success status
+   or sanitized error.
 
 The output adds two fields:
 
@@ -162,8 +176,9 @@ support@verygoodsecurity.com for more.
 
 ## Deleting
 
-When the customer wants to delete a service account, provide this command for
-them to run after they verify the exact organization and client ID:
+When the customer wants to delete a service account, run this command when
+delegated, or provide it to the customer, after verifying the exact
+organization and client ID:
 
 ```bash
 vgs delete service-account -O <ORGANIZATION_ID> <SERVICE_ACCOUNT_CLIENT_ID>

@@ -15,11 +15,10 @@ make controlled configuration changes, and hand the result to automation.
 
 ## Safety preflight
 
-This skill always uses a copy-paste flow:
+This skill supports copy-paste guidance and explicitly delegated CLI execution:
 
-1. Never execute a `vgs` command for the customer, even when they explicitly
-   ask the agent to run it.
-2. Tell the customer that every command must be run in their own terminal.
+1. Without delegation, give the customer reviewed commands to run.
+2. With explicit delegation, execute only the authorized CLI workflow.
 3. Identify the VGS organization, exact tenant identifier, and SANDBOX or LIVE
    environment. Do not infer the identifier from a prefix.
 4. Keep authenticated reads separate from mutations and label each command.
@@ -41,13 +40,13 @@ entitlements, and user roles are Dashboard or VGS-managed prerequisites; do
 not claim the CLI provisions them.
 
 Ask whether the customer will use an existing SANDBOX tenant or wants to
-create one in Dashboard. The customer performs Dashboard and CLI operations;
-the skill provides instructions and commands only.
+create one in Dashboard. The customer performs Dashboard operations. Provide
+CLI commands or execute them when explicitly delegated.
 
 ### 2. Install and authenticate interactively
 
-Tell the customer to run these commands in their own terminal. Never run
-`vgs login` for them:
+Run these commands when explicitly delegated, or give them to the customer to
+run:
 
 ```bash
 python3 -m pip install vgs-cli
@@ -62,8 +61,8 @@ organization and tenant access.
 
 ### 3. Reconcile Dashboard and CLI identity
 
-Provide this authenticated read for the customer to run to confirm the
-organization:
+Run this authenticated read when delegated, or provide it to the customer, to
+confirm the organization:
 
 ```bash
 vgs get organizations
@@ -77,28 +76,41 @@ prefix; do not guess or rewrite the value before passing it to `--tenant`.
 If the expected organization or tenant is absent, stop. Resolve Dashboard
 membership or authorization instead of selecting a similarly named resource.
 
-### 4. Create a SANDBOX tenant when requested
+### 4. Create a tenant when requested
 
 Have the customer create the tenant in Dashboard under the confirmed
 organization, choose `SANDBOX`, and use the reviewed tenant name. Tenant
 creation may expose credentials that must go directly to an approved secret
-store; do not ask the customer to paste them into chat or an agent-visible
-terminal.
+store; do not ask the customer to paste them into chat or expose them in
+agent-visible output.
 
 After provisioning completes, have the customer copy the exact tenant
 identifier from Dashboard and confirm the environment before composing any
 tenant-scoped CLI command.
 
-If the user explicitly requests tenant creation through the CLI, have them
-generate and review the input locally:
+If the user explicitly requests tenant creation through the CLI, generate and
+review the input when delegated, or have the customer do so locally:
 
 ```bash
 vgs generate tenant > tenant.yaml
 ```
 
-Provide apply with protected shell redirection because the response contains
-one-time credentials. The customer chooses the destination and runs it in their
-private terminal:
+Review the tenant name, `SANDBOX` or `LIVE`, organization, and region. The
+organization must be activated for the requested LIVE region. Both environments
+use a staged workflow that waits up to 120 seconds for provisioning, creates
+the payment account, and applies environment-specific account configuration.
+The Account Updater and Network Token enrollment overrides in the input affect
+SANDBOX only; LIVE uses its fixed default configuration.
+
+SANDBOX creation also configures the merchant and creates a CLI-managed
+`default` Collect Form with card brand and card type enabled. The form is
+intentional CLI onboarding functionality that Dashboard tenant creation does
+not yet provide. LIVE creation does not configure a merchant or create a
+Collect Form.
+
+Use protected shell redirection for apply because the response contains
+one-time credentials. The customer chooses or approves the destination. When
+execution is delegated, do not inspect the redirected response:
 
 ```bash
 (
@@ -111,21 +123,44 @@ private terminal:
 )
 ```
 
-The destination must be a new absolute path outside a Git worktree. Never run
-the command or ask the customer to upload, print, or paste the response. Have
-the customer open it only in their private terminal, store the credentials in
-an approved secret manager, and return only non-sensitive status and the exact
-tenant identifier needed for subsequent CLI commands.
+The destination must be a new absolute path outside a Git worktree. If the
+customer delegates execution, run the command only after they approve the path
+and keep the redirected response out of agent-visible output. Never read it or
+ask the customer to upload, print, or paste it. Have the customer open it only
+in their private environment, store the credentials in an approved secret
+manager, and return only non-sensitive status and the exact tenant identifier
+needed for subsequent CLI commands.
+
+If tenant creation stops after making progress, run the same apply command
+again. Because the protected response uses `noclobber`, choose a new secure
+response destination:
+
+```bash
+(
+  umask 077
+  set -o noclobber
+  vgs apply tenant \
+    -O <ORGANIZATION_ID> \
+    -f tenant.yaml \
+    > /absolute/secure/new-resume-response.yaml
+)
+```
+
+The CLI continues the existing operation automatically. It verifies recorded
+resources and reconciles an account created remotely before its identifier was
+saved. Do not locate or edit the recovery file. To create a separate tenant,
+update the input to use a unique tenant name before applying it.
 
 ### 5. Establish a read-only baseline
 
 ```bash
 vgs get routes -T <TENANT_ID> > routes.baseline.yaml
+vgs get tenant -T <TENANT_ID> > tenant.baseline.yaml
 vgs get forms -T <TENANT_ID>
 vgs certificate list -T <TENANT_ID>
 ```
 
-Have the customer run only the reads relevant to their integration. A 403 is an
+Run or provide only the reads relevant to the integration. A 403 is an
 authorization or entitlement blocker, not a reason to copy browser headers or
 request a pasted Dashboard token.
 
@@ -143,10 +178,11 @@ Choose the narrow workflow:
 
 ### 7. Verify in CLI and Dashboard
 
-Have the customer read the changed resource back through the CLI, refresh the
-matching tenant in the Dashboard, and compare identifiers and relevant
-configuration. When the integration can make a safe synthetic request, provide
-the relevant request and log commands for the customer to run:
+Read the changed resource back through the CLI when delegated, or have the
+customer do so. Refresh the matching tenant in the Dashboard, and compare
+identifiers and relevant configuration. When the integration can make a safe
+synthetic request, run the relevant request and log commands when delegated,
+or provide them to the customer:
 
 ```bash
 vgs logs access -T <TENANT_ID> --tail 10
@@ -169,8 +205,8 @@ end-to-end request validation as separate outcomes.
 3. Edit `routes.proposed.yaml`; preserve the top-level `data:` list.
 4. Review the semantic diff and the request/response phases, operations,
    classifiers, targets, transformers, and destinations.
-5. Provide this mutation for the customer to run after reviewing the exact
-   tenant, environment, and semantic diff:
+5. Run this mutation when delegated, or provide it to the customer, after
+   reviewing the exact tenant, environment, and semantic diff:
 
    ```bash
    vgs apply routes -T <TENANT_ID> -f routes.proposed.yaml
@@ -195,16 +231,21 @@ through the explicit `delete routes` command and its confirmation.
 1. Confirm the active organization and organization-admin access. A 403 is an
    authorization blocker; do not work around it with copied Dashboard headers
    or tokens.
-2. Have the customer run these reads in their own terminal:
+2. Run these reads when delegated, or provide them to the customer:
 
    ```bash
-   vgs get notification-providers
    vgs get notifications -O <ORGANIZATION_ID> \
      > notifications.before.yaml
    ```
 
-3. Prepare `notification.proposed.yaml`. The customer must not add a webhook
-   signing secret; VGS generates it and the CLI masks it:
+3. Generate a starting template when delegated, or have the customer generate
+   it. Then edit `notification.proposed.yaml` to the intended provider, name,
+   parameters, and events. Do not add a webhook signing secret; VGS generates
+   it and the CLI masks it:
+
+   ```bash
+   vgs generate notification > notification.proposed.yaml
+   ```
 
    ```yaml
    apiVersion: 1.0.0
@@ -227,7 +268,7 @@ through the explicit `delete routes` command and its confirmation.
    Omitted events remain unchanged; use `enabled: false` for an intentional
    event disable.
 4. After reviewing the organization, destination URL, events, and source IDs,
-   have the customer run the mutation:
+   run the mutation when delegated, or provide it to the customer:
 
    ```bash
    vgs apply notification \
@@ -258,8 +299,8 @@ vgs apply notification -O <ORGANIZATION_ID> \
   --disable <INTEGRATION_ID>
 ```
 
-Provide deletion only after the customer confirms the exact integration. The
-customer runs it and then reads the list back:
+Perform or provide deletion only after the customer confirms the exact
+integration, then read the list back:
 
 ```bash
 vgs delete notification -O <ORGANIZATION_ID> <INTEGRATION_ID>
@@ -276,7 +317,12 @@ vgs get forms -T <TENANT_ID>
 vgs get form -T <TENANT_ID> <FORM_ID> > form.before.yaml
 ```
 
-Prepare exactly one input form:
+Prepare exactly one input form. For a new form, generate a starting template
+when delegated, or have the customer generate it, then edit it:
+
+```bash
+vgs generate form > form.proposed.yaml
+```
 
 ```bash
 vgs apply form -T <TENANT_ID> -f form.proposed.yaml
@@ -284,10 +330,10 @@ vgs apply form -T <TENANT_ID> -f form.proposed.yaml
 vgs apply form -T <TENANT_ID> --json '<FORM_JSON>'
 ```
 
-Before providing apply, inspect the form ID, name, and configuration. The
-customer runs the command. Creating a new ID does not prompt; replacing an
-existing ID does. Keep the replacement prompt unless the customer explicitly
-asks for a non-interactive command after reviewing the exact replacement.
+Before applying, inspect the form ID, name, and configuration. Creating a new
+ID does not prompt; replacing an existing ID does. Keep the replacement prompt
+unless the customer explicitly asks for a non-interactive command after
+reviewing the exact replacement.
 
 After apply:
 
@@ -300,8 +346,7 @@ Dashboard. Treat a successful form configuration read-back separately from
 frontend integration, visual behavior, accessibility, and end-to-end
 tokenization; those require their own evidence.
 
-Provide deletion only after the customer verifies the exact target. The
-customer runs it:
+Perform or provide deletion only after the customer verifies the exact target:
 
 ```bash
 vgs delete form -T <TENANT_ID> <FORM_ID>
@@ -309,9 +354,19 @@ vgs delete form -T <TENANT_ID> <FORM_ID>
 
 ## CI/CD handoff
 
-Have the customer create a service account either in Dashboard under
-Organization settings or through the CLI. The built-in CLI templates are for
-payment-credential workflows. For a read-only integration that must not return
+Create a service account either in Dashboard under Organization settings or
+through the CLI. The customer performs the Dashboard flow; the agent may
+perform the CLI flow when delegated. For common CLI organization, tenant,
+route, and access-log operations, start with the `vgs-cli` template and grant
+only the required tenants:
+
+```bash
+vgs generate service-account \
+  --template vgs-cli \
+  --tenant <TENANT_ID> > service-account.yaml
+```
+
+For a read-only payment-credential integration that must not return
 PCI-sensitive PAN or CVC fields, use the no-PCI template:
 
 ```bash
@@ -328,9 +383,10 @@ complete read/write scope set. For unrelated automation, create a separately
 reviewed least-privilege service account instead of broadening one of these
 templates.
 
-Review the generated YAML. Because apply returns a one-time client secret,
-provide protected shell redirection to a new absolute destination outside a
-Git worktree. The customer runs it in their private terminal:
+Review the generated YAML. Because apply returns a one-time client secret, use
+protected shell redirection to a new absolute destination outside a Git
+worktree. If execution is delegated, the customer must approve the destination
+and the agent must not inspect it:
 
 ```bash
 (
@@ -343,9 +399,10 @@ Git worktree. The customer runs it in their private terminal:
 )
 ```
 
-Never execute this command or ask the customer to upload, print, or paste the
-response. Have them transfer the secret to an approved secret manager and
-return only a non-sensitive success status or sanitized error.
+Never expose the response in agent-visible output or inspect it, and do not ask
+the customer to upload, print, or paste it. Have them transfer the secret to an
+approved secret manager and return only a non-sensitive success status or
+sanitized error.
 
 Store the one-time `clientId` and `clientSecret` directly in the CI platform's
 secret manager as `VGS_CLIENT_ID` and `VGS_CLIENT_SECRET`. Do not commit a
@@ -371,10 +428,11 @@ Before promotion:
 2. fetch its current configuration rather than assuming SANDBOX parity;
 3. remove environment-specific endpoints, IDs, credentials, and test values;
 4. review product enablement and service-account scopes for LIVE;
-5. have the customer explicitly approve the exact LIVE commands before they run
-   them; and
+5. have the customer explicitly approve each exact LIVE mutation before it is
+   run; and
 6. prepare read-back and rollback procedures.
 
-Have the customer run each LIVE mutation separately and verify it before
-continuing. Report configuration deployment, Dashboard visibility, and
+Run each delegated LIVE mutation separately and verify it before continuing;
+otherwise instruct the customer to do so. Report configuration deployment,
+Dashboard visibility, and
 production traffic validation independently.

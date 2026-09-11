@@ -89,13 +89,44 @@ List the tenants visible to the authenticated identity:
 vgs get tenants
 ```
 
+Read one tenant with its provisioning, payment account, configuration, and
+SANDBOX merchant state:
+
+```bash
+vgs get tenant --tenant <TENANT_ID>
+```
+
 Create or select a tenant in Dashboard, then copy its exact identifier for
 `--tenant/-T`. Confirm the tenant's environment before any mutation. Tenant
 identifiers do not have a single standard prefix.
 
-Use `get tenants` for tenant discovery and `generate tenant` / `apply tenant`
-for CLI tenant creation. Canonical tenant creation uses a `kind: Tenant`
-resource document.
+Use `get tenants` for discovery, `get tenant --tenant <TENANT_ID>` for detailed
+read-back, and `generate tenant` / `apply tenant` for CLI tenant creation.
+Canonical tenant creation uses a `kind: Tenant` resource document. SANDBOX and
+LIVE creation resolve the requested region, wait up to 120 seconds for tenant
+provisioning, create the payment account, and apply the environment's account
+configuration. SANDBOX additionally configures the merchant and creates a
+CLI-managed `default` Collect Form with card brand and card type enabled. This
+form is intentionally part of CLI onboarding, is not currently created during
+Dashboard tenant creation, and is never created for LIVE tenants.
+
+Create a tenant from its reviewed resource file:
+
+```bash
+vgs apply tenant --file tenant.yaml
+```
+
+For both environments, the CLI manages a private recovery file in its
+application directory. If matching state already exists, running the same
+apply command automatically continues an incomplete creation. If the matching
+operation is complete, the CLI verifies the tenant and reports that no changes
+were made. If that tenant no longer exists, the CLI archives the stale state
+and creates it again. To create a separate tenant, update the file to use a
+unique tenant name before applying it.
+
+The internally managed recovery file contains identifiers and completed-stage
+metadata, never tokens or one-time tenant credentials. Users must not edit,
+move, or delete it.
 
 ## Organization notifications
 
@@ -103,17 +134,17 @@ Notification integrations are organization-scoped webhook configurations.
 They require an active organization, organization-admin access, and a token
 authorized for `notification-center:notifications:write`.
 
-Read the provider catalog and current state:
+Read the current state:
 
 ```bash
-vgs get notification-providers
 vgs get notifications -O <ORGANIZATION_ID>
 vgs get notification-events -O <ORGANIZATION_ID> <INTEGRATION_ID>
 ```
 
-Apply configuration or change integration status:
+Generate a template, then apply configuration or change integration status:
 
 ```bash
+vgs generate notification > notification.yaml
 vgs apply notification -O <ORGANIZATION_ID> -f notification.yaml
 vgs apply notification -O <ORGANIZATION_ID> --enable <INTEGRATION_ID>
 vgs apply notification -O <ORGANIZATION_ID> --disable <INTEGRATION_ID>
@@ -141,6 +172,8 @@ Read `workflows.md` for the backup, apply, and read-back sequence.
 Generate a template with one of the supported template names:
 
 ```bash
+vgs generate service-account --template vgs-cli \
+  --tenant <TENANT_ID> > service-account.yaml
 vgs generate service-account --template public-credential-collect \
   --tenant <TENANT_ID> \
   --var name=<SERVICE_ACCOUNT_NAME> > service-account.yaml
@@ -159,9 +192,9 @@ Generate options:
 
 | Option | Purpose |
 | --- | --- |
-| `--template, -t` | Required template: `public-credential-collect`, `read-credentials-no-pci`, `read-credentials-with-pci`, or `credentials-admin`. |
-| `--var name=VALUE` | Required service-account name containing 1–20 characters. |
-| `--tenant, -T <TENANT_ID>` | Required tenant; each built-in template accepts exactly one. |
+| `--template, -t` | Required template: `vgs-cli`, `public-credential-collect`, `read-credentials-no-pci`, `read-credentials-with-pci`, or `credentials-admin`. |
+| `--var name=VALUE` | Required by payment-credential templates; the name must contain 1–20 characters. |
+| `--tenant, -T <TENANT_ID>` | Repeatable and optional for `vgs-cli`; required exactly once by payment-credential templates. |
 
 Inspect the generated YAML before applying it, then manage the account:
 
@@ -174,8 +207,9 @@ vgs delete service-account -O <ORGANIZATION_ID> <SERVICE_ACCOUNT_CLIENT_ID>
 `apply` and `get` accept `-O/--organization`; `delete` requires it. The client
 secret is returned only at creation. Provide the protected shell redirection
 pattern from `SKILL.md`, using an absolute output path outside a Git worktree.
-The customer runs it in their private terminal. Never execute the command or
-display, request, or read the captured response. Read
+If execution is delegated, run it only with stdout redirected directly to the
+customer-approved destination. Never display, request, or read the captured
+response. Read
 `service-accounts.md` for scope and Dashboard guidance.
 
 ## Access credentials
@@ -187,24 +221,24 @@ vgs generate access-credentials --tenant <TENANT_ID>
 
 Both commands require `--tenant/-T`. Generation is a live mutation that returns
 secret material. Provide generation with the protected shell redirection
-pattern from `SKILL.md` and have the customer choose a new secure destination
-and run it in their private terminal. Never execute the command or display,
-request, or read the captured response.
+pattern from `SKILL.md` and have the customer choose or approve a new secure
+destination outside version control. If execution is delegated, redirect
+stdout directly there and never display, request, or read the captured
+response.
 
 ## Routes
 
 Generate starter resource documents:
 
 ```bash
-vgs generate http-route
-vgs generate mft-route
+vgs generate route --protocol http
+vgs generate route --protocol sftp
 ```
 
 Read, apply, and delete routes:
 
 ```bash
 vgs get routes --tenant <TENANT_ID> > routes.yaml
-vgs get http-routes --tenant <TENANT_ID>
 vgs apply routes --tenant <TENANT_ID> --filename routes.yaml
 vgs delete routes --tenant <TENANT_ID> <ROUTE_ID>
 ```
@@ -212,7 +246,6 @@ vgs delete routes --tenant <TENANT_ID> <ROUTE_ID>
 | Command | Options and arguments |
 | --- | --- |
 | `get routes` | Required `--tenant/-T`. Returns a reusable top-level `data:` list. |
-| `get http-routes` | Required `--tenant/-T`. Returns HTTP route resource documents. |
 | `apply routes` | Required `--tenant/-T` and `--filename/-f`. Creates entries without an ID and updates entries with an ID. |
 | `delete routes` | Required `--tenant/-T`, positional `ROUTE_ID`, optional `--confirm/-y`. |
 
@@ -256,10 +289,11 @@ data:
 version: 1
 ```
 
-The `generate http-route` resource envelope is not the top-level `data:` list
-accepted by `apply routes`. For an existing tenant, start from `get routes`
-output. Provide the backup, edit, apply, and read-back commands in order. The
-customer reviews the exact mutation and runs every command.
+The HTTP document produced by `generate route --protocol http` and the output
+from `get routes` both use the top-level `data:` list accepted by `apply routes`.
+For an existing tenant, start from `get routes` output. Provide the backup,
+edit, apply, and read-back commands in order. The customer reviews the exact
+mutation and runs every command.
 
 ## Tenant resource documents
 
@@ -280,6 +314,7 @@ as proof that remote authorization or provisioning will succeed.
 ```bash
 vgs get forms --tenant <TENANT_ID>
 vgs get form --tenant <TENANT_ID> <FORM_ID>
+vgs generate form > form.yaml
 vgs apply form --tenant <TENANT_ID> --file form.yaml
 vgs apply form --tenant <TENANT_ID> --json '<FORM_JSON>'
 vgs delete form --tenant <TENANT_ID> <FORM_ID>
@@ -289,6 +324,7 @@ vgs delete form --tenant <TENANT_ID> <FORM_ID>
 | --- | --- |
 | `get forms` | Required `--tenant/-T`. |
 | `get form` | Required `--tenant/-T` and positional `FORM_ID`; returns reusable Dashboard-compatible YAML. |
+| `generate form` | No options; outputs a starting Collect Form template. |
 | `apply form` | Required `--tenant/-T`; exactly one of `--file/-f` or `--json`; optional `--confirm/-y` for replacement. |
 | `delete form` | Required `--tenant/-T`, positional `FORM_ID`, optional `--confirm/-y`. |
 
@@ -358,8 +394,9 @@ vgs certificate upload \
 `upload` accepts required `--tenant/-T`, required
 `--name/-n/--domain/-d/--cert-id`, and required `--file/-f`. Treat a generated
 private key as secret material and never commit it. Provide
-`--private-key-out` only after the customer chooses a secure local path that
-will not enter agent output, logs, or version control. The customer runs it.
+`--private-key-out` only after the customer chooses or approves a secure local
+path that will not enter agent output, logs, or version control. When execution
+is delegated, do not inspect the generated private key.
 
 ## Logs
 
