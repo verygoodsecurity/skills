@@ -6,9 +6,11 @@ description: Execute an approved VGS SANDBOX onboarding plan with vgs-cli, inclu
 # VGS agentic onboarding
 
 Use this skill only after needs discovery produced a confirmed
-`VGS_ONBOARDING.md` and the user explicitly authorized implementation. This is
-the execution skill for agent-run VGS CLI onboarding; do not route this workflow
-through a command-guidance-only skill that requires user copy/paste.
+`VGS_ONBOARDING.md` and the user explicitly authorized the selected
+implementation scope. This is the execution skill for agent-run VGS CLI
+onboarding; do not route this workflow through a command-guidance-only skill
+that requires user copy/paste. The onboarding file describes architecture and
+scope. It does not itself authorize VGS resource mutations.
 
 The plan may be shared across Dashboard, backend, frontend, and mobile
 implementations without assuming company roles. Before installing the CLI or
@@ -18,37 +20,50 @@ Continue only when an incomplete `agent_vgs_cli` step is selected and its
 dependencies have current non-secret evidence. Dashboard-only or
 application-only selection does not authorize CLI execution.
 
-Require the exact non-null `tenant_id` supplied or confirmed by the user and
-`environment_confirmed: true` before authentication or mutation. Verify through
-safe reads that the authenticated tenant is that identifier and is SANDBOX;
-block on any mismatch and never infer an identifier from a name or prefix.
-
 Read [references/execution-contract.md](references/execution-contract.md)
-before any authenticated read or mutation. Discover the current public catalog
-before resolving dependencies:
+before any authenticated read or mutation. Choose the execution path before
+resolving a tenant:
+
+- **Structured setup path:** Use only when installed `vgs --help` confirms
+  `vgs generate setup`, `vgs setup plan`, and `vgs setup apply`. It creates a
+  versioned `VGS-SETUP.yaml`, saves an immutable plan, and applies the approved
+  saved plan.
+- **Legacy path:** Applies to Dashboard changes, application code, and CLI work
+  that the installed setup workflow does not support. It retains the
+  per-operation approval contract in the execution reference.
+
+For an existing tenant in either path, require a non-null exact `tenant_id` and
+`environment_confirmed: true` before mutation. Verify through safe reads that
+the authenticated tenant is that identifier and is SANDBOX; block on any
+mismatch and never infer an identifier from a name or prefix.
+
+For a new tenant, use only the structured setup path. `tenant_id` may be null
+until creation succeeds. Before authenticated planning, require the approved
+SANDBOX organization, proposed tenant name, creation intent, and selected
+resources in `VGS_ONBOARDING.md` and `VGS-SETUP.yaml`. Verify the authenticated
+organization through a safe identity read. After apply, record only the
+non-secret tenant identifier returned by read-back; require that exact
+identifier for later work outside the saved plan.
+
+Discover the current public Skills catalog before resolving dependencies. For
+each selected component or SDK skill, read its catalog entry and use the exact
+published install source and command declared there. Cross-product onboarding
+and CLI skills may be installed from `verygoodsecurity/skills`; SDK skills may
+declare their product repository instead. Never replace a catalog-declared
+product source with the catalog repository merely because the skill is listed
+there.
+
+Install only selected skills at global scope so the customer repository remains
+unchanged. Use the catalog-declared source in the normal install form:
 
 ```bash
-npx skills add verygoodsecurity/skills --list
+npx skills add <CATALOG_DECLARED_SOURCE> --global --skill <COMPONENT_SKILL> --yes
 ```
 
-Support every skill returned by that catalog. Load only the skills required by
-the approved plan, using each skill's name and description to match the selected
-product, platform, and operation. Never load `vgs-agentic-onboarding` as its own
-dependency. Do not substitute a skill for a different product or platform, and
-do not treat catalog availability as authorization to execute an unselected
-step.
-
-If a selected component skill is not installed, install only that skill at
-global scope so the customer repository remains unchanged:
-
-```bash
-npx skills add verygoodsecurity/skills --global --skill <COMPONENT_SKILL> --yes
-```
-
-Confirm that the selected global skill is available before continuing. Never use
-a project-local installation, ask the user to run the command, or leave
-`.agents/` or `skills-lock.json` in the customer repository. Use the guarded
-fallback when global installation fails, would modify the project, or the
+Confirm each selected global skill is available before continuing. Never use a
+project-local installation, ask the user to run the command, or leave `.agents/`
+or `skills-lock.json` in the customer repository. Use the guarded fallback when
+the catalog-declared installation fails, would modify the project, or the
 published skill is unavailable.
 
 ## Execution boundary
@@ -72,27 +87,37 @@ published skill is unavailable.
 
 ## Workflow
 
-1. Read the approved plan, confirm the exact tenant and SANDBOX target, and
-   select only incomplete `agent_vgs_cli` steps named in `selected_steps` with
-   verified dependencies.
+1. Read the approved scope and select only incomplete `agent_vgs_cli` steps
+   named in `selected_steps` with verified dependencies. Identify whether the
+   work is structured setup, legacy work, or both.
 2. Inspect the installed CLI version and relevant help. Install or update the
    CLI yourself from the official getting-started documentation when needed.
 3. Start `vgs login` yourself. Pause only for the user to finish browser
    authentication, then perform the least-privileged identity read.
-4. Resolve organization and tenant identifiers from authenticated reads; never
-   infer them from names or prefixes.
-5. For each mutation, capture current state, prepare exact input, calculate its
-   SHA-256 digest, and show a redacted preview containing the action, target,
-   environment, input path, and digest.
-6. Obtain explicit approval for that exact digest. Re-read target state before
-   execution and reject stale approval.
-7. Execute the exact approved command. For secret-producing operations, use the
-   protected-output procedure in the execution contract.
-8. Read back only allowlisted non-secret state and update the implementation-step status,
-   `last_verified_at`, non-secret evidence, and execution log. Do not call a
-   component complete without read-back evidence. Record remaining platform
-   scopes when handing the plan onward, and do not mark the whole plan complete
-   while any implementation step remains incomplete.
+4. For structured setup, generate `VGS-SETUP.yaml` from the installed CLI
+   template, populate only the confirmed selected resources, and run `vgs setup
+   plan -f VGS-SETUP.yaml`. Planning must not mutate. Present the resulting
+   redacted preview, saved-plan location, and SHA-256 digest.
+5. Obtain one explicit customer approval for that exact saved-plan digest. Do
+   not treat an `approved` field in either artifact as consent. The agent records
+   the customer decision in `VGS_ONBOARDING.md`; the CLI verifies the saved-plan
+   integrity and remote-state preconditions.
+6. Apply the complete saved plan with `vgs setup apply --plan <SAVED_PLAN>`.
+   Do not add a CLI `--approval` flag. Use `--operation <OPERATION_ID>` only when
+   the customer selected that already-previewed operation and every dependency
+   is verified complete in the same saved plan; never use it to broaden scope or
+   bypass the whole-plan approval.
+7. For new-tenant apply, use the protected-output procedure and the installed
+   CLI's required credentials-output argument. For every structured operation,
+   read back allowlisted non-secret state and update the implementation-step
+   status, `last_verified_at`, non-secret evidence, and execution log.
+8. For legacy work, follow the per-operation preview, exact-target,
+   digest-bound approval, drift check, execution, and read-back procedure in
+   the execution contract. A saved setup plan never authorizes Dashboard or
+   application changes.
+9. Do not call a component complete without read-back evidence. Record
+   remaining platform scopes when handing the plan onward, and do not mark the
+   whole plan complete while any implementation step remains incomplete.
 
 ## Guarded documentation fallback
 

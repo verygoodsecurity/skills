@@ -3,14 +3,44 @@
 ## Authorization states
 
 Planning approval authorizes preparation, CLI installation, authentication, and
-read-only discovery. Each mutation still needs approval of its exact preview
-digest. An approval expires when the target, input, command, environment, or
-current remote state changes.
+read-only discovery. It does not authorize resource mutations.
+
+For the structured `VGS-SETUP.yaml` path, `vgs setup plan` saves an immutable
+plan after validating the specification and inspecting current state. The agent
+must present its redacted preview and SHA-256 digest, then obtain one explicit
+customer approval for that saved plan. `vgs setup apply --plan <SAVED_PLAN>`
+applies the complete approved plan by default. The CLI must verify saved-plan
+integrity and remote-state preconditions before mutation; it must not silently
+regenerate or broaden the approved plan. The approval expires when the saved
+plan, its digest, environment, selected operation, or remote-state preconditions
+change. An `approved` field in an onboarding or setup file is not proof of
+customer consent.
+
+`--operation <OPERATION_ID>` is an optional, dependency-safe subset of an
+already approved saved plan. It cannot add operations or turn one resource
+approval into another. Apply it only when all dependencies are verified complete
+in that saved plan.
+
+Dashboard, application, and unsupported legacy CLI mutations do not use the
+structured setup approval. Each still needs approval of its exact preview digest.
+That approval expires when the target, input, command, environment, or current
+remote state changes.
 
 ## Preview record
 
-Record these non-secret fields in `VGS_ONBOARDING.md` before requesting
-approval:
+For the structured setup path, record these non-secret fields in
+`VGS_ONBOARDING.md` before requesting approval:
+
+- saved-plan location and SHA-256 digest;
+- setup specification digest and version;
+- confirmed organization and either the exact existing tenant or approved new
+  tenant creation target;
+- `SANDBOX` environment;
+- selected operations, dependencies, and their current-state preconditions;
+- expected read-back fields and failure boundary.
+
+For a legacy mutation, record these non-secret fields before requesting its
+separate approval:
 
 - operation and exact target identifier;
 - confirmed organization, tenant, and `SANDBOX` environment;
@@ -21,6 +51,12 @@ approval:
 
 Do not show full customer route documents when a summary of protocol, direction,
 destination hostname, filter phase, operation, and selector is sufficient.
+
+For a new tenant, the structured specification must name the confirmed
+organization, SANDBOX environment, proposed tenant name, and selected resources.
+Do not require a pre-existing `tenant_id` before planning or applying that plan.
+After creation, read back and record the returned non-secret identifier before
+starting unrelated or later work.
 
 ## Secret-producing commands
 
