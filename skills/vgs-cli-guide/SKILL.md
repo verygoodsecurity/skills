@@ -89,8 +89,7 @@ Read `references/workflows.md` when the user wants to:
 - create or select a SANDBOX tenant in Dashboard and establish a CLI baseline;
 - change routes with backup and read-back verification;
 - create or replace a Collect Form and verify Dashboard parity;
-- hand an interactive setup off to CI/CD with a service account; or
-- promote reviewed configuration toward a LIVE tenant.
+- hand an interactive setup off to CI/CD with a service account.
 
 For a first-time setup, start with the Dashboard-assisted onboarding flow.
 Keep Dashboard-only account, organization, entitlement, and product-enablement
@@ -232,21 +231,9 @@ approved secret manager and remove the plaintext file when it is no longer
 needed. Never suggest printing, uploading, or pasting the captured contents
 into chat.
 
-For a user-requested CLI tenant creation, use `vgs generate tenant` and
-`vgs apply tenant`. SANDBOX and LIVE both use bounded provisioning, create the
-payment account, apply environment-specific account configuration, and keep
-private recovery state. SANDBOX additionally performs merchant setup and
-creates a CLI-managed `default` Collect Form with card brand and card type
-enabled. Dashboard tenant creation does not yet create this form, and LIVE
-creation never creates it. Protect the apply response with the redirection
-pattern above because it contains one-time credentials. If either environment
-reports partial completion, run or provide the same `vgs apply tenant --file`
-command again. The CLI automatically
-continues the existing operation. When the matching operation is already
-complete, the CLI verifies the tenant and reports that no changes were made.
-To create a separate tenant, update the file to use a unique tenant name.
-Recovery files are managed internally. When output is protected with
-`noclobber`, the repeated command needs a new secure response destination.
+For a user-requested CLI tenant creation, follow **4. Create a tenant when
+requested** in `references/workflows.md`. It covers the environment-specific
+workflow, one-time credential handling, and recovery behavior.
 
 ## Troubleshoot
 
@@ -264,7 +251,7 @@ codesign, or reinstall steps.
 ## Reference files
 
 - `references/workflows.md` - Dashboard-assisted onboarding, route and Collect
-  Form change loops, CI/CD handoff, and LIVE promotion gates.
+  Form change loops, and CI/CD handoff.
 - `references/commands.md` - built-in command and option reference with exact
   tenant terminology and payload examples.
 - `references/service-accounts.md` - templates, scopes, Dashboard creation,

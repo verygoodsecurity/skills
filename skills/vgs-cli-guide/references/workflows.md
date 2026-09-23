@@ -11,7 +11,6 @@ make controlled configuration changes, and hand the result to automation.
 - [Organization notification loop](#organization-notification-loop)
 - [Collect Form loop](#collect-form-loop)
 - [CI/CD handoff](#cicd-handoff)
-- [LIVE promotion](#live-promotion)
 
 ## Safety preflight
 
@@ -99,8 +98,9 @@ Review the tenant name, `SANDBOX` or `LIVE`, organization, and region. The
 organization must be activated for the requested LIVE region. Both environments
 use a staged workflow that waits up to 120 seconds for provisioning, creates
 the payment account, and applies environment-specific account configuration.
-The Account Updater and Network Token enrollment overrides in the input affect
-SANDBOX only; LIVE uses its fixed default configuration.
+These settings apply only to SANDBOX; LIVE uses its default configuration.
+`deduplication` accepts `ENABLED` or `DISABLED`. `panAliasFormat` accepts any
+non-empty backend-supported value.
 
 SANDBOX creation also configures the merchant and creates a CLI-managed
 `default` Collect Form with card brand and card type enabled. The form is
@@ -417,22 +417,3 @@ Then keep the pipeline sequence explicit:
 4. apply to the exact tenant;
 5. read back and compare; and
 6. retain non-secret audit evidence.
-
-## LIVE promotion
-
-Do not treat a successful SANDBOX setup as authorization to mutate LIVE.
-
-Before promotion:
-
-1. identify the separate LIVE tenant identifier and organization;
-2. fetch its current configuration rather than assuming SANDBOX parity;
-3. remove environment-specific endpoints, IDs, credentials, and test values;
-4. review product enablement and service-account scopes for LIVE;
-5. have the customer explicitly approve each exact LIVE mutation before it is
-   run; and
-6. prepare read-back and rollback procedures.
-
-Run each delegated LIVE mutation separately and verify it before continuing;
-otherwise instruct the customer to do so. Report configuration deployment,
-Dashboard visibility, and
-production traffic validation independently.
